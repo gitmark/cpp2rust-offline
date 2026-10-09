@@ -1,6 +1,9 @@
 name: build-cpp2rust-image
 on: workflow_dispatch
 
+permissions:
+  contents: write  # needed to publish the release
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -54,3 +57,24 @@ jobs:
             cpp2rust-offline.tar.gz.sha256
           compression-level: 0
           retention-days: 7
+
+      - name: Publish as a public GitHub Release (no login needed to download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          cat > notes.md <<'NOTES'
+          Offline cpp2rust container image (x86_64), built and tested by the build-cpp2rust-image workflow.
+
+          Download every `cpp2rust-part-*` file and `cpp2rust-offline.tar.gz.sha256`, then:
+
+          ```bash
+          cat cpp2rust-part-* > cpp2rust-offline.tar.gz
+          sha256sum -c cpp2rust-offline.tar.gz.sha256
+          gunzip -c cpp2rust-offline.tar.gz | podman load   # or: docker load
+          podman run --rm -it --network=none -v "$PWD":/work:Z cpp2rust-offline cpp2rust --file=hello.cpp -o=hello.rs
+          ```
+          NOTES
+          gh release create "$TAG" cpp2rust-part-* cpp2rust-offline.tar.gz.sha256 \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "cpp2rust-offline $TAG" --notes-file notes.md --latest
