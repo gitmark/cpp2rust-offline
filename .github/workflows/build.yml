@@ -16,10 +16,32 @@ jobs:
       - name: Check architecture
         run: podman image inspect cpp2rust-offline --format '{{.Architecture}}'
 
-      - name: Export and split into USB-friendly pieces
+      - name: "Test 1: translate hello world (offline)"
+        run: |
+          mkdir -p /tmp/t && cd /tmp/t
+          printf '#include <cstdio>\nint main(){ printf("hello world\\n"); return 0; }\n' > hello.cpp
+          podman run --rm --network=none -v /tmp/t:/work:Z cpp2rust-offline \
+            cpp2rust --file=hello.cpp -o=hello.rs
+          cat hello.rs
+
+      - name: "Test 2: compile and run the Rust output (offline)"
+        run: |
+          podman run --rm --network=none -v /tmp/t:/work:Z cpp2rust-offline bash -c '
+            set -e
+            cargo new --bin out
+            cp hello.rs out/src/main.rs
+            cd out
+            cargo add --offline --path /opt/cpp2rust/libcc2rs
+            cargo build --offline
+            ./target/debug/out'
+
+      - name: Export, then test that the exported file loads and runs
         run: |
           podman save cpp2rust-offline | gzip > cpp2rust-offline.tar.gz
           sha256sum cpp2rust-offline.tar.gz > cpp2rust-offline.tar.gz.sha256
+          podman rmi cpp2rust-offline
+          gunzip -c cpp2rust-offline.tar.gz | podman load
+          podman run --rm --network=none cpp2rust-offline cpp2rust --help | head -5
           split -b 1900m cpp2rust-offline.tar.gz cpp2rust-part-
           rm cpp2rust-offline.tar.gz
           ls -lh
