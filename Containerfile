@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y wget gnupg lsb-release software-properties-common \
       git cmake ninja-build python3 python3-pip curl build-essential ca-certificates \
  && wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh && bash /tmp/llvm.sh 22 \
- && apt-get install -y libclang-22-dev clang-format-22 \
+ && apt-get install -y libclang-22-dev clang-format-22 libzstd-dev libedit-dev libcurl4-openssl-dev zlib1g-dev libxml2-dev \
  && pip install --break-system-packages ruff==0.15.22 \
  && rm -rf /var/lib/apt/lists/*
 
